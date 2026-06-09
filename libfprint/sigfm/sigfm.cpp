@@ -80,7 +80,10 @@ struct angle {
 };
 } // namespace
 
-SigfmImgInfo* sigfm_copy_info(SigfmImgInfo* info) { return new SigfmImgInfo{*info}; }
+SigfmImgInfo* sigfm_copy_info(SigfmImgInfo* info) {
+    void* mem = g_malloc(sizeof(SigfmImgInfo));
+    return new (mem) SigfmImgInfo{*info};
+}
 
 int sigfm_keypoints_count(SigfmImgInfo* info) { return info->keypoints.size(); }
 unsigned char* sigfm_serialize_binary(SigfmImgInfo* info, int* outlen)
@@ -138,7 +141,8 @@ SigfmImgInfo* sigfm_extract(const SigfmPix* pix, int width, int height)
         cv::Mat descs;
         cv::SIFT::create()->detectAndCompute(img, roi, pts, descs);
 
-        auto* info = new SigfmImgInfo{pts, descs};
+        void* mem = g_malloc(sizeof(SigfmImgInfo));
+        auto* info = new (mem) SigfmImgInfo{pts, descs};
         return info;
     } catch(...) {
         return nullptr;
@@ -229,13 +233,10 @@ int sigfm_match_score(SigfmImgInfo* frame, SigfmImgInfo* enrolled)
     }
 }
 
-void sigfm_free_info(SigfmImgInfo* info) { 
+void sigfm_free_info(SigfmImgInfo* info) {
     if (!info)
         return;
 
-    // if (info->buffer)
-    //     g_free(info->buffer);
-
-    g_free(info);    
-    // delete info; 
+    info->~SigfmImgInfo();
+    g_free(info);
 }
