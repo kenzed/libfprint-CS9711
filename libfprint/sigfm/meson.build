@@ -6,6 +6,9 @@ doctest = dependency('doctest', required: true)
 
 libsigfm = static_library('sigfm',
         sigfm_sources,
-        dependencies: [opencv],
+        dependencies: [
+                opencv,
+                glib_dep
+        ],
 )
 sigfm_tests = executable('sigfm-tests', ['./tests.cpp'], dependencies: [doctest, opencv], link_with: [libsigfm])

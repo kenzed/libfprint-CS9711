@@ -7,14 +7,6 @@
 // SPDX-License-Identifier: LGPL-2.1-or-later
 //
 
-#include "sigfm.h"
-#include "binary.hpp"
-#include "img-info.hpp"
-
-#include "opencv2/core/persistence.hpp"
-#include "opencv2/core/types.hpp"
-#include "opencv2/features2d.hpp"
-#include "opencv2/imgcodecs.hpp"
 #include <algorithm>
 #include <cstdio>
 #include <filesystem>
@@ -22,9 +14,19 @@
 #include <iterator>
 #include <sstream>
 #include <string>
-
-#include <opencv2/opencv.hpp>
 #include <vector>
+
+#include <glib.h>
+
+#include "opencv2/core/persistence.hpp"
+#include "opencv2/core/types.hpp"
+#include "opencv2/features2d.hpp"
+#include "opencv2/imgcodecs.hpp"
+#include "opencv2/opencv.hpp"
+
+#include "sigfm.h"
+#include "binary.hpp"
+#include "img-info.hpp"
 
 namespace bin {
 using byte = unsigned char;
@@ -92,11 +94,12 @@ unsigned char* sigfm_serialize_binary(SigfmImgInfo* info, int* outlen)
     // the caller to free with free(), and this is the only function that
     // bridges the C++ std::vector to C raw pointer.
     std::vector<bin::byte> buf = s.copy_buffer();
-    unsigned char* result = static_cast<unsigned char*>(malloc(buf.size()));
+    // unsigned char* result = static_cast<unsigned char*>(malloc(buf.size()));
+    void* result = g_malloc(buf.size());
     if (result && !buf.empty()) {
         std::memcpy(result, buf.data(), buf.size());
     }
-    return result;
+    return (unsigned char*)result;
 }
 
 SigfmImgInfo* sigfm_deserialize_binary(const unsigned char* bytes, int len)
@@ -226,4 +229,13 @@ int sigfm_match_score(SigfmImgInfo* frame, SigfmImgInfo* enrolled)
     }
 }
 
-void sigfm_free_info(SigfmImgInfo* info) { delete info; }
+void sigfm_free_info(SigfmImgInfo* info) { 
+    if (!info)
+        return;
+
+    // if (info->buffer)
+    //     g_free(info->buffer);
+
+    g_free(info);    
+    // delete info; 
+}
