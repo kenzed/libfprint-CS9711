@@ -105,11 +105,16 @@ public:
         store_.erase(store_.begin(), store_.begin() + dist);
         return *this;
     }
-    byte* copy_buffer() const
+    /**
+     * @brief Returns a copy of the internal buffer.
+     * @return std::vector<byte> A copy of the stored bytes.
+     * @note Previously returned a malloc()-allocated raw pointer, which was
+     *       incompatible with the new/delete memory management used by
+     *       SigfmImgInfo. Returns a vector to avoid UB.
+     */
+    std::vector<byte> copy_buffer() const
     {
-        byte* raw = static_cast<byte*>(malloc(store_.size()));
-        std::copy(store_.begin(), store_.end(), raw);
-        return raw;
+        return store_;
     }
     std::size_t size() const { return store_.size(); }
 

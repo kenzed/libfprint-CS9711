@@ -27,7 +27,7 @@
 #include <vector>
 
 namespace bin {
-
+using byte = unsigned char;
 template<>
 struct serializer<SigfmImgInfo> : public std::true_type {
     static void serialize(const SigfmImgInfo& info, stream& out)
@@ -85,8 +85,18 @@ unsigned char* sigfm_serialize_binary(SigfmImgInfo* info, int* outlen)
 {
     bin::stream s;
     s << *info;
-    *outlen = s.size();
-    return s.copy_buffer();
+    *outlen = static_cast<int>(s.size());
+
+    // copy_buffer() now returns std::vector<byte>, convert to malloc'd buffer
+    // for the C API. We use malloc here since the C API contract requires
+    // the caller to free with free(), and this is the only function that
+    // bridges the C++ std::vector to C raw pointer.
+    std::vector<bin::byte> buf = s.copy_buffer();
+    unsigned char* result = static_cast<unsigned char*>(malloc(buf.size()));
+    if (result && !buf.empty()) {
+        std::memcpy(result, buf.data(), buf.size());
+    }
+    return result;
 }
 
 SigfmImgInfo* sigfm_deserialize_binary(const unsigned char* bytes, int len)
@@ -105,9 +115,20 @@ SigfmImgInfo* sigfm_deserialize_binary(const unsigned char* bytes, int len)
 SigfmImgInfo* sigfm_extract(const SigfmPix* pix, int width, int height)
 {
     try {
+        // Validate inputs to prevent integer overflow and out-of-bounds memcpy
+        if (pix == nullptr || width <= 0 || height <= 0) {
+            return nullptr;
+        }
+        if (width > 65536 || height > 65536) {
+            return nullptr;
+        }
+
+        // Check for integer overflow in width * height
+        std::size_t expected_size = static_cast<std::size_t>(width) * static_cast<std::size_t>(height);
+
         cv::Mat img;
         img.create(height, width, CV_8UC1);
-        std::memcpy(img.data, pix, width * height);
+        std::memcpy(img.data, pix, expected_size);
         const auto roi = cv::Mat::ones(cv::Size{img.size[1], img.size[0]}, CV_8UC1);
         std::vector<cv::KeyPoint> pts;
 
